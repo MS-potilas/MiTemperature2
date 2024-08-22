@@ -614,22 +614,30 @@ elif args.passive:
 		def decode_data_ruuvi(mac, adv_type, data_str, rssi, measurement):
 			import struct
 			# https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
-			if 'ff9904' in data_str.lower():
+			if 'ff9904' in data_str.lower() and (not args.onlydevicelist or mac in sensors):
 				try:
-					print("BLE packet - ruuvitag: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
-					data = data_str.split('ff9904')[1]
+					data = data_str.lower().split('ff9904')[1]
 					data = struct.unpack('>BhHHhhhHBH6B', bytearray.fromhex(data[:48]))
-					temperature = round(data[1] / 200, 2)
-					humidity = round(data[2] / 400, 2)
-					batteryVoltage = (data[7] >> 5) / 1000.0 + 1.6
-					tf = min(1.08, max(0.92, 1.08+temperature/125.0))
-					batteryPercent = min(100, max(0, round((batteryVoltage - 2.3 * tf) * 100 / (3.2 - 2.3 * tf)) )) # V range 2.3–3.2
-					measurement.battery = batteryPercent
-					measurement.humidity = humidity
-					measurement.temperature = temperature
-					measurement.voltage = round(batteryVoltage,3)
-					measurement.rssi = rssi
-					return measurement
+					advNumber = data[9]
+					macStr = mac.replace(":","").upper()
+					if macStr in advCounter:
+						lastAdvNumber = advCounter[macStr]
+					else:
+						lastAdvNumber = None
+					if lastAdvNumber == None or lastAdvNumber != advNumber:
+						advCounter[macStr] = advNumber
+						print("BLE packet - ruuvitag: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
+						temperature = round(data[1] / 200, 2)
+						humidity = round(data[2] / 400, 2)
+						batteryVoltage = (data[7] >> 5) / 1000.0 + 1.6
+						tf = min(1.08, max(0.92, 1.08+temperature/125.0))
+						batteryPercent = min(100, max(0, round((batteryVoltage - 2.3 * tf) * 100 / (3.2 - 2.3 * tf)) )) # V range 2.3–3.2
+						measurement.battery = batteryPercent
+						measurement.humidity = humidity
+						measurement.temperature = temperature
+						measurement.voltage = round(batteryVoltage,3)
+						measurement.rssi = rssi
+						return measurement
 				except:
 					pass
 			return
