@@ -795,8 +795,8 @@ elif args.passive:
 			global measurements
 			measurement = Measurement(0,0,0,0,0,0,0,0)
 			measurement = (
-                decode_data_ruuvi(mac, adv_type, data_str, rssi, measurement)
-                or
+				decode_data_ruuvi(mac, adv_type, data_str, rssi, measurement)
+				or
 				decode_data_atc(mac, adv_type, data_str, rssi, measurement)
 				or
 				decode_data_lywsdcgq(mac, adv_type, data_str, rssi, measurement)
