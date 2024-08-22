@@ -611,6 +611,29 @@ elif args.passive:
 	try:
 		prev_data = None
 
+		def decode_data_ruuvi(mac, adv_type, data_str, rssi, measurement):
+			import struct
+			# https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2
+			if 'ff9904' in data_str.lower():
+				try:
+					print("BLE packet - ruuvitag: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
+					data = data_str.split('ff9904')[1]
+					data = struct.unpack('>BhHHhhhHBH6B', bytearray.fromhex(data[:48]))
+					temperature = round(data[1] / 200, 2)
+					humidity = round(data[2] / 400, 2)
+					batteryVoltage = (data[7] >> 5) / 1000.0 + 1.6
+					tf = min(1.08, max(0.92, 1.08+temperature/125.0))
+					batteryPercent = min(100, max(0, round((batteryVoltage - 2.3 * tf) * 100 / (3.2 - 2.3 * tf)) )) # V range 2.3–3.2
+					measurement.battery = batteryPercent
+					measurement.humidity = humidity
+					measurement.temperature = temperature
+					measurement.voltage = round(batteryVoltage,3)
+					measurement.rssi = rssi
+					return measurement
+				except:
+					pass
+			return
+
 		def decode_data_atc(mac, adv_type, data_str, rssi, measurement):
 			preeamble = "161a18"
 			packetStart = data_str.find(preeamble)
@@ -772,6 +795,8 @@ elif args.passive:
 			global measurements
 			measurement = Measurement(0,0,0,0,0,0,0,0)
 			measurement = (
+                decode_data_ruuvi(mac, adv_type, data_str, rssi, measurement)
+                or
 				decode_data_atc(mac, adv_type, data_str, rssi, measurement)
 				or
 				decode_data_lywsdcgq(mac, adv_type, data_str, rssi, measurement)
